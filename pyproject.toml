@@ -6,4 +6,5 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "arcade>=3.3.3",
+    "fastapi[standard]>=0.141.1",
 ]

@@ -1,8 +1,11 @@
+import threading
 from enum import Enum, auto
 from pathlib import Path
 
 import arcade
+import uvicorn
 from arcade.sprite.animated import TextureAnimation, TextureAnimationSprite, TextureKeyframe
+from fastapi import FastAPI, HTTPException
 from PIL import Image
 
 WINDOW_WIDTH = 1280
@@ -137,8 +140,33 @@ class GameView(arcade.View):
         elif key == arcade.key.KEY_4:
             current_state = FaceState.BORED
 
+app = FastAPI()
+
+
+@app.get("/state")
+def get_state() -> dict[str, str]:
+    return {"state": current_state.name}
+
+
+@app.put("/state/{state}")
+def set_state(state: str) -> dict[str, str]:
+    global current_state
+    key = state.upper()
+    by_name = {s.name: s for s in FaceState}
+    by_value = {str(s.value): s for s in FaceState}
+    found = by_name.get(key) or by_value.get(key)
+    if found is None:
+        raise HTTPException(status_code=400, detail="Use 1-4 or IDLE, SPEAKING, THINKING, BORED")
+    current_state = found
+    return {"state": current_state.name}
+
 
 def main():
+    threading.Thread(
+        target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info"),
+        daemon=True,
+    ).start()
+
     window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
     window.background_color = BACKGROUND_COLOR
     game = GameView()
