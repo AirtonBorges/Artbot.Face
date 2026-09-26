@@ -8,18 +8,16 @@ from arcade.sprite.animated import TextureAnimation, TextureAnimationSprite, Tex
 from fastapi import FastAPI, HTTPException
 from PIL import Image
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
 WINDOW_TITLE = "Robot Face"
-
-SPRITES_DIR = Path(__file__).parent / "sprites"
 
 EYES_SCALE = 0.5
 MOUTH_SCALE = 0.5
 EYES_OFFSET_Y = 80
 MOUTH_OFFSET_Y = -90
-BACKGROUND_COLOR = (90, 90, 100)
+BACKGROUND_COLOR = (1, 61, 115)
 
+BACKGROUND_IMAGE_PATH = Path(__file__).parent / "assets/bg.png"
+SPRITES_DIR = Path(__file__).parent / "assets"
 
 class FaceState(Enum):
     IDLE = auto()
@@ -104,22 +102,33 @@ class FacePart(TextureAnimationSprite):
         self.time = 0.0
         self._current_keyframe_index = 0
 
-
 class GameView(arcade.View):
     def __init__(self) -> None:
         super().__init__()
-        center_x, center_y = WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2
+        self.draw_face()
+
+    def draw_face(self):
+        width = self.window.width
+        height = self.window.height
+        center_x, center_y = width / 2, height / 2
 
         self.mouth = FacePart("mouth", center_x, center_y + MOUTH_OFFSET_Y, MOUTH_SCALE)
         self.eyes = FacePart("eyes", center_x, center_y + EYES_OFFSET_Y, EYES_SCALE)
+        self.background_image = arcade.load_texture(file_path=BACKGROUND_IMAGE_PATH)
+        self.background_image.height = height;
+        self.background_image.width = width;
+        self.background_sprite = arcade.Sprite(self.background_image, center_x=center_x, center_y=center_y)
 
         self.mouth_list = arcade.SpriteList()
         self.mouth_list.append(self.mouth)
         self.eyes_list = arcade.SpriteList()
         self.eyes_list.append(self.eyes)
+        self.others_list = arcade.SpriteList()
+        self.others_list.append(self.background_sprite);
 
     def on_draw(self) -> None:
         self.clear()
+        self.others_list.draw()
         self.mouth_list.draw()
         self.eyes_list.draw()
 
@@ -129,8 +138,17 @@ class GameView(arcade.View):
         self.mouth_list.update_animation(delta_time)
         self.eyes_list.update_animation(delta_time)
 
+    def on_resize(self, width: int, height: int) -> bool | None:
+        self.draw_face()
+        return super().on_resize(width, height)
+
     def on_key_press(self, key: int, modifiers: int) -> None:
         global current_state
+
+        if key == arcade.key.F11:
+            isFullScreen = not self.window.fullscreen;
+            self.window.set_fullscreen(isFullScreen);
+
         if key == arcade.key.KEY_1:
             current_state = FaceState.IDLE
         elif key == arcade.key.KEY_2:
@@ -167,7 +185,7 @@ def main():
         daemon=True,
     ).start()
 
-    window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
+    window = arcade.Window(title=WINDOW_TITLE, resizable=True, center_window=True)
     window.background_color = BACKGROUND_COLOR
     game = GameView()
     window.show_view(game)
